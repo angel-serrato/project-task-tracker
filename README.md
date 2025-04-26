@@ -95,3 +95,10 @@ To avoid committing local task data, add this line to your `.gitignore` file:
 ## License
 
 This project is open-source and free to use.
+
+## Project Roadmap
+
+This project is inspired by the idea of building a task tracker CLI tool.  
+You can check out a more advanced version of this project idea here:
+
+🔗 [Task Tracker Project Idea on roadmap.sh](https://roadmap.sh/projects/task-tracker)
