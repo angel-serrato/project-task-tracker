@@ -3,6 +3,8 @@
 A simple command-line task manager written in Python.  
 Add, update, delete, and list your tasks directly from the terminal. Tasks are stored locally in a JSON file.
 
+![taskcli](https://github.com/user-attachments/assets/1927faf7-75af-4cd3-b1b2-f9d3052ea10c)
+
 ## Features
 
 - Add tasks with descriptions
