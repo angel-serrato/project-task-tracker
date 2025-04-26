@@ -6,6 +6,43 @@ from datetime import datetime
 TASKS_FILE = "tasks.json"
 
 
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: task_cli.py <command> [options]")
+        return
+    command = sys.argv[1]
+    try:
+        if command == "add":
+            if len(sys.argv) < 3:
+                raise ValueError("Usage: add [description]")
+            add_task(" ".join(sys.argv[2:]))
+        elif command == "update":
+            if len(sys.argv) < 4:
+                raise ValueError("Usage: update <id> [description]")
+            update_task(int(sys.argv[2]), " ".join(sys.argv[3:]))
+        elif command == "delete":
+            if len(sys.argv) < 3:
+                raise ValueError("Usage: delete <id>")
+            delete_task(int(sys.argv[2]))
+        elif command == "mark-in-progress":
+            if len(sys.argv) < 3:
+                raise ValueError("Usage: mark-in-progress <id>")
+            mark_status(int(sys.argv[2]), "in-progress")
+        elif command == "mark-done":
+            if len(sys.argv) < 3:
+                raise ValueError("Usage: mark-done <id>")
+            mark_status(int(sys.argv[2]), "done")
+        elif command == "list":
+            if len(sys.argv) > 2:
+                list_tasks(sys.argv[2])
+            else:
+                list_tasks()
+        else:
+            print(f"Unknown command: {command}")
+    except ValueError as e:
+        print(f"Error {e}")
+
+
 def now():
     return datetime.now().isoformat()
 
@@ -13,8 +50,20 @@ def now():
 def load_tasks_from_file():
     if not os.path.exists(TASKS_FILE):
         return {"tasks": []}
-    with open(TASKS_FILE, "r") as file:
-        return json.load(file)
+    try:
+        with open(TASKS_FILE, "r") as file:
+            return json.load(file)
+    except json.JSONDecodeError:
+        print("Error: the task file is corrupted. It will be reset.")
+        return {"tasks": []}
+
+
+def format_date(iso_str):
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return iso_str
 
 
 def save_tasks_to_file(tasks_data):
@@ -22,25 +71,14 @@ def save_tasks_to_file(tasks_data):
         json.dump(tasks_data, file, indent=4)
 
 
-def list_tasks(filter_status=None):
-    tasks_data = load_tasks_from_file()
-    tasks = tasks_data["tasks"]
-    if filter_status:
-        tasks = [task for task in tasks if task["status"] == filter_status]
-    if not tasks:
-        print("No tasks found.")
-        return
-    for task in tasks:
-        print(f"[{task['id']}] [{task['status']}] [{task['description']}]")
-
-
 def add_task(description):
     tasks_data = load_tasks_from_file()
     tasks = tasks_data["tasks"]
+    new_id = max([task["id"] for task in tasks], default=0) + 1
     new_task = {
-        "id": len(tasks_data["tasks"]) + 1,
+        "id": new_id,
         "description": description,
-        "status": "todo",
+        "status": "not done",
         "createdAt": now(),
         "updatedAt": now(),
     }
@@ -56,26 +94,27 @@ def update_task(task_id, description):
         if task["id"] == task_id:
             task["description"] = description
             task["updatedAt"] = now()
-            save_tasks_to_file({"tasks": tasks})
-            print(f"Task {task_id} updated.")
+            try:
+                save_tasks_to_file({"tasks": tasks})
+                print(f"Task updated successfully (ID: {task_id})")
+            except Exception as e:
+                print(f"Task updated successfully (ID: {task_id})")
             return
     print(f"No task with ID {task_id} found.")
 
 
 def delete_task(task_id):
-    try:
-        task_id = int(task_id)
-    except ValueError:
-        print("Error: El ID debe ser un número válido.")
-        return
     tasks_data = load_tasks_from_file()
     tasks = tasks_data["tasks"]
     new_tasks = [task for task in tasks if task["id"] != task_id]
     if len(tasks) == len(new_tasks):
         print(f"No task with ID {task_id} found.")
     else:
-        save_tasks_to_file({"tasks": new_tasks})
-        print(f"Task {task_id} deleted.")
+        try:
+            save_tasks_to_file({"tasks": new_tasks})
+            print(f"Task {task_id} deleted.")
+        except Exception as e:
+            print(f"Error saving tasks: {e}")
 
 
 def mark_status(task_id, status):
@@ -85,40 +124,29 @@ def mark_status(task_id, status):
         if task["id"] == task_id:
             task["status"] = status
             task["updatedAt"] = now()
-            save_tasks_to_file({"tasks": tasks})
-            print(f"Task {task_id} marked as {status}.")
+            try:
+                save_tasks_to_file({"tasks": tasks})
+                print(f"Task {task_id} marked as {status}.")
+            except Exception as e:
+                print(f"Error saving tasks: {e}")
             return
     print(f"No task with ID {task_id} found.")
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: task_cli.py <command> [options]")
+def list_tasks(filter_status=None):
+    tasks_data = load_tasks_from_file()
+    tasks = tasks_data["tasks"]
+    if filter_status:
+        tasks = [task for task in tasks if task["status"] == filter_status]
+    if not tasks:
+        print("No tasks found.")
         return
-    command = sys.argv[1]
-    try:
-        if command == "add":
-            if len(sys.argv) > 2:
-                add_task(" ".join(sys.argv[2:]))
-            else:
-                print("You must provide a description for the task.")
-        elif command == "update":
-            update_task(int(sys.argv[2]), sys.argv[3])
-        elif command == "delete":
-            delete_task(int(sys.argv[2]))
-        elif command == "mark-in-progress":
-            mark_status(int(sys.argv[2]), "in-progress")
-        elif command == "mark-done":
-            mark_status(int(sys.argv[2]), "done")
-        elif command == "list":
-            if len(sys.argv) > 2:
-                list_tasks(sys.argv[2])
-            else:
-                list_tasks()
-        else:
-            print("Unknown command or missing arguments.")
-    except ValueError:
-        print("Invalid ID. It should be a number.")
+    for task in tasks:
+        print(f"[ID: {task['id']}] [Status: {task['status']}]")
+        print(f"  Description: {task['description']}")
+        print(f"  Created:    {format_date(task['createdAt'])}")
+        print(f"  Updated:    {format_date(task['updatedAt'])}")
+        print()
 
 
 if __name__ == "__main__":
